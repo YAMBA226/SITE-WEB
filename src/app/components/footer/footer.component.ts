@@ -29,7 +29,7 @@ import { CommonModule } from '@angular/common';
           <div class="footer-section">
             <h4 class="section-title">Contact</h4>
             <div class="contact-info">
-              <p>Email: contact@monsite.com</p>
+              <p>Email: contact&#64;monsite.com</p>
               <p>Téléphone: +33 1 23 45 67 89</p>
             </div>
           </div>
