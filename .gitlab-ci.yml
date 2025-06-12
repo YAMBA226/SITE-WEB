@@ -1,0 +1,64 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKERHUB_USERNAME: "cheicky226"
+  DOCKERHUB_PASSWORD: "Kiemalise19" 
+  DEPLOY_SERVER: "147.93.72.193"
+  DEPLOY_USER: "root"
+  DEPLOY_PASSWORD: "Freedom@8410"   
+  IMAGE_BACKEND: "$DOCKERHUB_USERNAME/inovex-backend:latest"
+  IMAGE_FRONTEND: "$DOCKERHUB_USERNAME/inovex-frontend:latest"
+  SERVICE_BACKEND_NAME: "inovex_backend"
+  SERVICE_FRONTEND_NAME: "inovex_frontend"
+
+# Build backend
+build-backend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - docker build -t "$IMAGE_BACKEND" -f api/Dockerfile.api ./api
+    - docker push "$IMAGE_BACKEND"
+  only:
+    - preprod
+
+# Build frontend
+build-frontend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - docker build -t "$IMAGE_FRONTEND" -f Dockerfile.front .
+    - docker push "$IMAGE_FRONTEND"
+  only:
+    - preprod
+
+# Deploy (just update services via swarm)
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh sshpass
+  script:
+    - echo " Mise à jour des services Swarm sur $DEPLOY_SERVER..."
+    - sshpass -p "$DEPLOY_PASSWORD" ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_SERVER" "
+        echo ' Mise à jour du service backend...' &&
+        docker service update --force --image $IMAGE_BACKEND $SERVICE_BACKEND_NAME &&
+        echo ' Mise à jour du service frontend...' &&
+        docker service update --force --image $IMAGE_FRONTEND $SERVICE_FRONTEND_NAME
+      "
+  only:
+    - preprod
+  needs:
+    - build-backend
+    - build-frontend
+  environment:
+    name: preprod
